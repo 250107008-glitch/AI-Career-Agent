@@ -1,0 +1,21 @@
+import streamlit as st
+from pypdf import PdfReader
+
+st.set_page_config(page_title="AI Career Agent", page_icon="💼")
+
+st.title("🤖 AI Career Agent")
+st.write("Этот агент анализирует ваше резюме и сравнивает его с вакансией.")
+
+# Загрузка данных
+uploaded_file = st.file_uploader("Загрузите резюме (PDF)", type="pdf")
+job_description = st.text_area("Вставьте описание вакансии")
+
+if st.button("Провести Gap-анализ"):
+    if uploaded_file and job_description:
+        st.success("Анализ запущен! ИИ сопоставляет навыки...")
+        # Имитация вывода
+        st.info("### Результат: Соответствие 82%")
+        st.warning("⚠️ Пробелы: Не указан опыт с Docker и Cloud-технологиями.")
+        st.write("💡 Совет: Перепишите опыт работы, используя цифры и метрики (XYZ formula).")
+    else:
+        st.error("Загрузите файл и вставьте текст вакансии!")
