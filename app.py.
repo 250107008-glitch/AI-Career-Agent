@@ -8,7 +8,7 @@ from aiogram.filters import Command
 # ==========================================
 # CONFIGURATION
 # ==========================================
-TELEGRAM_TOKEN = "8738937606:AAEQzIfILhVIUaqi0Jr-op37VYWOAC-eYmc" 
+TELEGRAM_TOKEN = "8798652311:AAGpti9UR3bmX5CFQF-fm_bWVSq4ypjLJIg"
 GROQ_API_KEY = "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"
 
 bot = Bot(token=TELEGRAM_TOKEN)
