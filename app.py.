@@ -1,21 +1,92 @@
-import streamlit as st
-from pypdf import PdfReader
+import asyncio
+import aiohttp
+import sqlite3
+import datetime
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import Command
 
-st.set_page_config(page_title="AI Career Agent", page_icon="💼")
+# ==========================================
+# CONFIGURATION
+# ==========================================
+TELEGRAM_TOKEN = "8738937606:AAEQzIfILhVIUaqi0Jr-op37VYWOAC-eYmc" 
+GROQ_API_KEY = "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"
 
-st.title("🤖 AI Career Agent")
-st.write("Этот агент анализирует ваше резюме и сравнивает его с вакансией.")
+bot = Bot(token=TELEGRAM_TOKEN)
+dp = Dispatcher()
 
-# Загрузка данных
-uploaded_file = st.file_uploader("Загрузите резюме (PDF)", type="pdf")
-job_description = st.text_area("Вставьте описание вакансии")
+# Database for Samples (Teacher's requirement)
+def init_db():
+    conn = sqlite3.connect("career_history.db")
+    cursor = conn.cursor()
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS history (
+        user_id INTEGER, 
+        user_text TEXT, 
+        ai_answer TEXT, 
+        date TEXT
+    )
+    """)
+    conn.commit()
+    return conn
 
-if st.button("Провести Gap-анализ"):
-    if uploaded_file and job_description:
-        st.success("Анализ запущен! ИИ сопоставляет навыки...")
-        # Имитация вывода
-        st.info("### Результат: Соответствие 82%")
-        st.warning("⚠️ Пробелы: Не указан опыт с Docker и Cloud-технологиями.")
-        st.write("💡 Совет: Перепишите опыт работы, используя цифры и метрики (XYZ formula).")
-    else:
-        st.error("Загрузите файл и вставьте текст вакансии!")
+db_conn = init_db()
+
+# ==========================================
+# MULTILINGUAL AI LOGIC
+# ==========================================
+SYSTEM_PROMPT = """
+You are a professional Multilingual AI Career Coach. 
+1. Detect the language of the user (Kazakh, Russian, or English).
+2. Perform a Gap-analysis based on their career goals.
+3. Provide resume improvement tips using the Google X-Y-Z formula.
+4. Answer in the SAME language as the user.
+Answer strictly and professionally.
+"""
+
+async def get_ai_response(user_text):
+    url = "https://api.groq.com/openai/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": user_text}
+        ],
+        "temperature": 0.5
+    }
+    async with aiohttp.ClientSession() as session:
+        async with session.post(url, json=payload, headers=headers) as resp:
+            data = await resp.json()
+            return data['choices'][0]['message']['content']
+
+# ==========================================
+# HANDLERS
+# ==========================================
+@dp.message(Command("start"))
+async def start(message: types.Message):
+    await message.answer(
+        "Welcome / Qosh keldiniz / Dobro pozhalovat.\n\n"
+        "EN: Send me your CV or career goal for analysis.\n"
+        "KZ: Magan rezumeńizdi nemese mansaptyq maqsatynyzdy jiberiniz.\n"
+        "RU: Otpravte mne svoe rezume ili karernuyu cel dlya analiza."
+    )
+
+@dp.message()
+async def handle(message: types.Message):
+    await bot.send_chat_action(message.chat.id, "typing")
+    response = await get_ai_response(message.text)
+    
+    # Save to DB for Samples (History)
+    cursor = db_conn.cursor()
+    cursor.execute("INSERT INTO history VALUES (?, ?, ?, ?)", 
+                   (message.from_user.id, message.text, response, str(datetime.datetime.now())))
+    db_conn.commit()
+    
+    await message.answer(response)
+
+async def main():
+    print("Multilingual Career Agent is running... OK")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
